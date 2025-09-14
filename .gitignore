@@ -367,3 +367,4 @@ FodyWeavers.xsd
 /*.sln
 **/*.sln
 /.sln
+/Properties/launchSettings.json
