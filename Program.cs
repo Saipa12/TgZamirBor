@@ -28,9 +28,10 @@ internal class Program
 
 	private async Task RunAsync()
 	{
-		var token = Environment.GetEnvironmentVariable("BOT_TOKEN");
+		//var token = Environment.GetEnvironmentVariable("BOT_TOKEN");
 		//botClient = new TelegramBotClient("7917581600:AAHX018K0PXZ2RxiPe4pYWNclgRwCNlO-Pc");
-		botClient = new TelegramBotClient(token);
+		botClient = new TelegramBotClient("7917581600:AAErCdOLOf5C09zex_LL3azrPvH6H-Rf1vM");
+		//botClient = new TelegramBotClient(token);
 		LoadState();
 		LoadMessageMap();
 
