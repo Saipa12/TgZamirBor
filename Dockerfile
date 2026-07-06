@@ -1,13 +1,20 @@
-﻿# Сборка проекта
-FROM mcr.microsoft.com/dotnet/sdk:8.0 AS build
+﻿FROM mcr.microsoft.com/dotnet/sdk:8.0 AS build
 WORKDIR /src
-COPY . .
-RUN dotnet restore
-RUN dotnet publish -c Release -o /app
 
-# Runtime образ
-FROM mcr.microsoft.com/dotnet/aspnet:8.0
+COPY NuGet.Config ./
+COPY TgZamirBor.csproj ./
+RUN dotnet restore
+
+COPY . .
+RUN dotnet publish TgZamirBor.csproj -c Release -o /app/publish /p:UseAppHost=false
+
+FROM mcr.microsoft.com/dotnet/runtime:8.0
 WORKDIR /app
-COPY --from=build /app .
+
+COPY --from=build /app/publish .
+
+ENV DATA_DIR=/data
+RUN mkdir -p /data
+VOLUME ["/data"]
 
 ENTRYPOINT ["dotnet", "TgZamirBor.dll"]

@@ -11,14 +11,25 @@ internal class Program
 	private readonly Dictionary<int, long> clientToChatMap = new();
 	private readonly Dictionary<(long userId, int userMessageId), int> userToGroupMap = new();
 	private readonly Dictionary<int, (long userId, int userMessageId)> groupToUserMap = new();
-	private const long groupId = -1002746255386;
-	private TelegramBotClient? botClient;
+	private readonly long groupId;
+	private TelegramBotClient botClient = null!;
 
-	private const string StateFilePath = "bot_state.json";
-	private const string WelcomeMediaFile = "welcome_media.json";
-	private const string MessageMapFile = "message_map.json";
+	private string StateFilePath => Path.Combine(dataDir, "bot_state.json");
+	private string WelcomeMediaFile => Path.Combine(dataDir, "welcome_media.json");
+	private string MessageMapFile => Path.Combine(dataDir, "message_map.json");
+	private readonly string dataDir;
 	private readonly List<int> cachedWelcomePhotoIds = new();
 	private bool welcomePhotosSaved = false;
+
+	private Program()
+	{
+		dataDir = Environment.GetEnvironmentVariable("DATA_DIR") ?? ".";
+		Directory.CreateDirectory(dataDir);
+
+		var groupIdEnv = Environment.GetEnvironmentVariable("GROUP_ID")
+			?? throw new InvalidOperationException("Укажите GROUP_ID — ID Telegram-группы (форум).");
+		groupId = long.Parse(groupIdEnv);
+	}
 
 	private static async Task Main(string[] args)
 	{
@@ -28,14 +39,19 @@ internal class Program
 
 	private async Task RunAsync()
 	{
-		//var token = Environment.GetEnvironmentVariable("BOT_TOKEN");
-		//botClient = new TelegramBotClient("7917581600:AAHX018K0PXZ2RxiPe4pYWNclgRwCNlO-Pc");
-		botClient = new TelegramBotClient("7917581600:AAErCdOLOf5C09zex_LL3azrPvH6H-Rf1vM");
-		//botClient = new TelegramBotClient(token);
+		var token = Environment.GetEnvironmentVariable("BOT_TOKEN")
+			?? throw new InvalidOperationException("Укажите BOT_TOKEN — токен Telegram-бота.");
+		botClient = new TelegramBotClient(token);
 		LoadState();
 		LoadMessageMap();
 
 		using var cts = new CancellationTokenSource();
+		Console.CancelKeyPress += (_, e) =>
+		{
+			e.Cancel = true;
+			cts.Cancel();
+		};
+
 		botClient.StartReceiving(
 			HandleUpdateAsync,
 			HandlePollingErrorAsync,
@@ -45,8 +61,14 @@ internal class Program
 		var me = await botClient.GetMe();
 		Console.WriteLine($"🤖 Бот запущен: @{me.Username}");
 
-		Console.ReadLine();
-		cts.Cancel();
+		try
+		{
+			await Task.Delay(Timeout.Infinite, cts.Token);
+		}
+		catch (OperationCanceledException)
+		{
+			Console.WriteLine("Остановка бота...");
+		}
 	}
 
 	private async Task HandleUpdateAsync(ITelegramBotClient bot, Update update, CancellationToken cancellationToken)
@@ -111,20 +133,17 @@ internal class Program
 							messageThreadId: topicId,
 							cancellationToken: cancellationToken);
 
-						replyId = copied.Id;
 						var sentCopied = await botClient.SendMessage(
 							chatId: groupId,
 							text: message.Text ?? "[медиа]",
 							messageThreadId: topicId,
-							replyParameters: replyTo,
+							replyParameters: copied.Id,
 							cancellationToken: cancellationToken);
 
-						// Сохраняем связь для будущих правок
-						userToGroupMap[(message.Chat.Id, sentCopied.MessageId)] = sentCopied.Id;
-						groupToUserMap[sentCopied.Id] = (message.Chat.Id, sentCopied.MessageId);
+						userToGroupMap[(message.Chat.Id, message.MessageId)] = sentCopied.MessageId;
+						groupToUserMap[sentCopied.MessageId] = (message.Chat.Id, message.MessageId);
 						SaveMessageMap();
-
-						replyTo = sentCopied.Id;
+						return;
 					}
 				}
 
@@ -243,7 +262,7 @@ internal class Program
 
 	public async Task DeleteMessage(long chatId, int messageId)
 	{
-		await botClient!.DeleteMessage(chatId, messageId);
+		await botClient.DeleteMessage(chatId, messageId);
 	}
 }
 

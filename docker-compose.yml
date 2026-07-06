@@ -1,0 +1,13 @@
+services:
+  bot:
+    build: .
+    restart: unless-stopped
+    environment:
+      BOT_TOKEN: ${BOT_TOKEN}
+      GROUP_ID: ${GROUP_ID}
+      DATA_DIR: /data
+    volumes:
+      - bot-data:/data
+
+volumes:
+  bot-data:
