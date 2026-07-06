@@ -65,9 +65,9 @@ internal class Program
 		{
 			await Task.Delay(Timeout.Infinite, cts.Token);
 		}
-		catch (OperationCanceledException)
+		catch (OperationCanceledException ex)
 		{
-			Console.WriteLine("Остановка бота...");
+			Console.WriteLine("Остановка бота..."+ex.Message);
 		}
 	}
 
